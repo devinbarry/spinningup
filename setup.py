@@ -1,5 +1,5 @@
 from os.path import join, dirname, realpath
-from setuptools import setup
+from setuptools import setup, find_packages
 import sys
 
 assert sys.version_info.major == 3 and sys.version_info.minor >= 6, \
@@ -13,6 +13,7 @@ setup(
     name='spinup',
     py_modules=['spinup'],
     version=__version__,#'0.1',
+    python_requires='>=3.6',
     install_requires=[
         'cloudpickle==1.2.1',
         'gym[atari,box2d,classic_control]~=0.15.3',
@@ -32,4 +33,5 @@ setup(
     ],
     description="Teaching tools for introducing people to deep RL.",
     author="Joshua Achiam",
+    packages=find_packages(exclude=('docs', 'tests')),
 )

@@ -1,4 +1,4 @@
-version_info = (0, 2, 0)
+version_info = (0, 2, 1)
 # format:
 # ('spinup_major', 'spinup_minor', 'spinup_patch')
 
