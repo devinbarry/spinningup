@@ -3,6 +3,9 @@
 import tensorflow as tf
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+# pep8: noqa
+import pkg_resources
+
 # Algorithms
 from spinup.algos.tf1.ddpg.ddpg import ddpg as ddpg_tf1
 from spinup.algos.tf1.ppo.ppo import ppo as ppo_tf1
@@ -21,5 +24,5 @@ from spinup.algos.pytorch.vpg.vpg import vpg as vpg_pytorch
 # Loggers
 from spinup.utils.logx import Logger, EpochLogger
 
-# Version
-from spinup.version import __version__
+__package__ = 'spinup'
+__version__ = pkg_resources.get_distribution('spinup').version
