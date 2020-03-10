@@ -57,14 +57,14 @@ class PPOBuffer:
         path_slice = slice(self.path_start_idx, self.ptr)
         rews = np.append(self.rew_buf[path_slice], last_val)
         vals = np.append(self.val_buf[path_slice], last_val)
-        
+
         # the next two lines implement GAE-Lambda advantage calculation
         deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
         self.adv_buf[path_slice] = core.discount_cumsum(deltas, self.gamma * self.lam)
-        
+
         # the next line computes rewards-to-go, to be targets for the value function
         self.ret_buf[path_slice] = core.discount_cumsum(rews, self.gamma)[:-1]
-        
+
         self.path_start_idx = self.ptr
 
     def get(self):
@@ -78,17 +78,16 @@ class PPOBuffer:
         # the next two lines implement the advantage normalization trick
         adv_mean, adv_std = mpi_statistics_scalar(self.adv_buf)
         self.adv_buf = (self.adv_buf - adv_mean) / adv_std
-        return [self.obs_buf, self.act_buf, self.adv_buf, 
+        return [self.obs_buf, self.act_buf, self.adv_buf,
                 self.ret_buf, self.logp_buf]
 
 
-
-def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0, 
+def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=None, seed=0,
         steps_per_epoch=4000, epochs=50, gamma=0.99, clip_ratio=0.2, pi_lr=3e-4,
         vf_lr=1e-3, train_pi_iters=80, train_v_iters=80, lam=0.97, max_ep_len=1000,
-        target_kl=0.01, logger_kwargs=dict(), save_freq=10):
+        target_kl=0.01, logger_kwargs=None, save_freq=10):
     """
-    Proximal Policy Optimization (by clipping), 
+    Proximal Policy Optimization (by clipping),
 
     with early stopping based on approximate KL
 
@@ -96,14 +95,14 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
         env_fn : A function which creates a copy of the environment.
             The environment must satisfy the OpenAI Gym API.
 
-        actor_critic: A function which takes in placeholder symbols 
-            for state, ``x_ph``, and action, ``a_ph``, and returns the main 
+        actor_critic: A function which takes in placeholder symbols
+            for state, ``x_ph``, and action, ``a_ph``, and returns the main
             outputs from the agent's Tensorflow computation graph:
 
             ===========  ================  ======================================
             Symbol       Shape             Description
             ===========  ================  ======================================
-            ``pi``       (batch, act_dim)  | Samples actions from policy given 
+            ``pi``       (batch, act_dim)  | Samples actions from policy given
                                            | states.
             ``logp``     (batch,)          | Gives log probability, according to
                                            | the policy, of taking actions ``a_ph``
@@ -112,16 +111,16 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
                                            | the policy, of the action sampled by
                                            | ``pi``.
             ``v``        (batch,)          | Gives the value estimate for states
-                                           | in ``x_ph``. (Critical: make sure 
+                                           | in ``x_ph``. (Critical: make sure
                                            | to flatten this!)
             ===========  ================  ======================================
 
-        ac_kwargs (dict): Any kwargs appropriate for the actor_critic 
+        ac_kwargs (dict): Any kwargs appropriate for the actor_critic
             function you provided to PPO.
 
         seed (int): Seed for random number generators.
 
-        steps_per_epoch (int): Number of steps of interaction (state-action pairs) 
+        steps_per_epoch (int): Number of steps of interaction (state-action pairs)
             for the agent and the environment in each epoch.
 
         epochs (int): Number of epochs of interaction (equivalent to
@@ -130,21 +129,21 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
         gamma (float): Discount factor. (Always between 0 and 1.)
 
         clip_ratio (float): Hyperparameter for clipping in the policy objective.
-            Roughly: how far can the new policy go from the old policy while 
-            still profiting (improving the objective function)? The new policy 
+            Roughly: how far can the new policy go from the old policy while
+            still profiting (improving the objective function)? The new policy
             can still go farther than the clip_ratio says, but it doesn't help
             on the objective anymore. (Usually small, 0.1 to 0.3.) Typically
-            denoted by :math:`\epsilon`. 
+            denoted by :math:`\epsilon`.
 
         pi_lr (float): Learning rate for policy optimizer.
 
         vf_lr (float): Learning rate for value function optimizer.
 
-        train_pi_iters (int): Maximum number of gradient descent steps to take 
+        train_pi_iters (int): Maximum number of gradient descent steps to take
             on policy loss per epoch. (Early stopping may cause optimizer
             to take fewer than this.)
 
-        train_v_iters (int): Number of gradient descent steps to take on 
+        train_v_iters (int): Number of gradient descent steps to take on
             value function per epoch.
 
         lam (float): Lambda for GAE-Lambda. (Always between 0 and 1,
@@ -153,7 +152,7 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
         max_ep_len (int): Maximum length of trajectory / episode / rollout.
 
         target_kl (float): Roughly what KL divergence we think is appropriate
-            between new and old policies after an update. This will get used 
+            between new and old policies after an update. This will get used
             for early stopping. (Usually small, 0.01 or 0.05.)
 
         logger_kwargs (dict): Keyword args for EpochLogger.
@@ -162,6 +161,10 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             the current policy and value function.
 
     """
+    if ac_kwargs is None:
+        ac_kwargs = {}
+    if logger_kwargs is None:
+        logger_kwargs = {}
 
     logger = EpochLogger(**logger_kwargs)
     logger.save_config(locals())
@@ -173,7 +176,7 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
     env = env_fn()
     obs_dim = env.observation_space.shape
     act_dim = env.action_space.shape
-    
+
     # Share information about action space with policy architecture
     ac_kwargs['action_space'] = env.action_space
 
@@ -224,7 +227,7 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
     logger.setup_tf_saver(sess, inputs={'x': x_ph}, outputs={'pi': pi, 'v': v})
 
     def update():
-        inputs = {k:v for k,v in zip(all_phs, buf.get())}
+        inputs = {k: v for k, v in zip(all_phs, buf.get())}
         pi_l_old, v_l_old, ent = sess.run([pi_loss, v_loss, approx_ent], feed_dict=inputs)
 
         # Training
@@ -240,7 +243,7 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 
         # Log changes from update
         pi_l_new, v_l_new, kl, cf = sess.run([pi_loss, v_loss, approx_kl, clipfrac], feed_dict=inputs)
-        logger.store(LossPi=pi_l_old, LossV=v_l_old, 
+        logger.store(LossPi=pi_l_old, LossV=v_l_old,
                      KL=kl, Entropy=ent, ClipFrac=cf,
                      DeltaLossPi=(pi_l_new - pi_l_old),
                      DeltaLossV=(v_l_new - v_l_old))
@@ -251,7 +254,7 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
     # Main loop: collect experience in env and update/log each epoch
     for epoch in range(epochs):
         for t in range(local_steps_per_epoch):
-            a, v_t, logp_t = sess.run(get_action_ops, feed_dict={x_ph: o.reshape(1,-1)})
+            a, v_t, logp_t = sess.run(get_action_ops, feed_dict={x_ph: o.reshape(1, -1)})
 
             o2, r, d, _ = env.step(a[0])
             ep_ret += r
@@ -265,11 +268,11 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             o = o2
 
             terminal = d or (ep_len == max_ep_len)
-            if terminal or (t==local_steps_per_epoch-1):
-                if not(terminal):
-                    print('Warning: trajectory cut off by epoch at %d steps.'%ep_len)
+            if terminal or (t == local_steps_per_epoch-1):
+                if not terminal:
+                    print(f'Warning: trajectory cut off by epoch at {ep_len} steps.')
                 # if trajectory didn't reach terminal state, bootstrap value target
-                last_val = 0 if d else sess.run(v, feed_dict={x_ph: o.reshape(1,-1)})
+                last_val = 0 if d else sess.run(v, feed_dict={x_ph: o.reshape(1, -1)})
                 buf.finish_path(last_val)
                 if terminal:
                     # only save EpRet / EpLen if trajectory finished
@@ -300,6 +303,7 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
         logger.log_tabular('Time', time.time()-start_time)
         logger.dump_tabular()
 
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
@@ -320,6 +324,6 @@ if __name__ == '__main__':
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
 
     ppo(lambda : gym.make(args.env), actor_critic=core.mlp_actor_critic,
-        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), gamma=args.gamma, 
+        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), gamma=args.gamma,
         seed=args.seed, steps_per_epoch=args.steps, epochs=args.epochs,
         logger_kwargs=logger_kwargs)
