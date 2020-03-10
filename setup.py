@@ -29,5 +29,5 @@ setup(
     ],
     description="Teaching tools for introducing people to deep RL.",
     author="Joshua Achiam",
-    packages=find_packages(exclude=('docs', 'tests')),
+    packages=find_packages(exclude=('docker', 'docs', 'tests')),
 )

@@ -1,0 +1,14 @@
+---
+
+version: '3.7'
+services:
+  trainer:
+    build:
+      context: .
+      dockerfile: docker/tf1-gpu/Dockerfile
+    image: spinningup/trainer
+    volumes:
+      - .:/app
+    command: python -m test.test_ppo
+    stdin_open: true
+    tty: true
