@@ -13,7 +13,7 @@ COPY . /app
 WORKDIR /app
 
 # Don't cache installers to reduce image size
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir .
 
 # Create a user and group that is not the root user
 RUN groupadd -r trainer && useradd --no-log-init -r -g trainer trainer
